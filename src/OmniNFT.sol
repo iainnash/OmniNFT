@@ -6,7 +6,7 @@ import {AxelarExecutable} from "@axelar-network/axelar-gmp-sdk-solidity/contract
 import {IAxelarGateway} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
 import {IAxelarGasService} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol";
 
-contract OmniNFT is ERC721Upgradeable, AxelarExecutable {
+contract OmniNFT is ERC721Upgradeable, AxelarExecutable, Ownable {
     uint256 public immutable baseChainId;
     IAxelarGasService public immutable gasService;
     mapping(uint256 => string) public uris;
@@ -17,31 +17,37 @@ contract OmniNFT is ERC721Upgradeable, AxelarExecutable {
     constructor(
         uint256 baseChainId_,
         string calldata baseChainName_,
-        address gateway_,
-        address gasService_
+        address owner,
+        string name,
+        string description
     ) AxelarExecutable(gateway_) {
+        __ERC721_init_unchained(name, description);
         baseChainId = baseChainId_;
         gasService = IAxelarGasService(gasService_);
         baseChainName = baseChainName_;
     }
 
-    function initialize(
-        string[] calldata chains,
-        string name,
-        string description
-    ) public initializer {
-        __ERC721_init(name, description);
+    function setupAxelar(
+        address gateway_,
+        address gasService_
+    ) public onlyOwner {
         _chains = chains;
     }
 
     function _broadcastMessage(bytes memory message) internal {
-        for (uint256 i = 0; i < chains.length; i++) {
+        for (uint256 i = 0; i < _chains.length; i++) {
             if (address(this).value > 0) {
                 gasService.payNativeGasForContractCall{
                     value: address(this).value
-                }(address(this), chains[i], address(this), message, msg.sender);
+                }(
+                    address(this),
+                    _chains[i],
+                    address(this),
+                    message,
+                    msg.sender
+                );
             }
-            gateway.callContract(chains[i], address(this), message);
+            gateway.callContract(_chains[i], address(this), message);
         }
     }
 
