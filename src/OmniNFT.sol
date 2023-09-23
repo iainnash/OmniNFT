@@ -1,29 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {AxelarExecutable} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarExecutable.sol";
 import {IAxelarGateway} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
 import {IAxelarGasService} from "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AxelarExecutableStatic} from "./AxelarExecutableStatic.sol";
 
-contract OmniNFT is ERC721Upgradeable, AxelarExecutable, Ownable {
+contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
     uint256 public immutable baseChainId;
-    IAxelarGasService public immutable gasService;
+    IAxelarGasService public gasService;
     mapping(uint256 => string) public uris;
     uint256 public nextTokenId = 1;
-    string[] public _chains;
+    string[] public chains;
     string public baseChainName;
 
     constructor(
         uint256 baseChainId_,
-        string calldata baseChainName_,
+        string memory baseChainName_,
+        string[] memory chains_,
         address owner,
-        string name,
-        string description
-    ) AxelarExecutable(gateway_) {
-        __ERC721_init_unchained(name, description);
+        string memory name,
+        string memory description
+    ) ERC721(name, description) {
+        _transferOwnership(owner);
+        chains = chains_;
         baseChainId = baseChainId_;
-        gasService = IAxelarGasService(gasService_);
         baseChainName = baseChainName_;
     }
 
@@ -31,23 +35,28 @@ contract OmniNFT is ERC721Upgradeable, AxelarExecutable, Ownable {
         address gateway_,
         address gasService_
     ) public onlyOwner {
-        _chains = chains;
+        _setGateway(gateway_);
+        gasService = IAxelarGasService(gasService_);
     }
 
     function _broadcastMessage(bytes memory message) internal {
-        for (uint256 i = 0; i < _chains.length; i++) {
-            if (address(this).value > 0) {
+        for (uint256 i = 0; i < chains.length; i++) {
+            if (address(this).balance > 0) {
                 gasService.payNativeGasForContractCall{
-                    value: address(this).value
+                    value: address(this).balance
                 }(
                     address(this),
-                    _chains[i],
-                    address(this),
+                    chains[i],
+                    Strings.toHexString(address(this)),
                     message,
                     msg.sender
                 );
             }
-            gateway.callContract(_chains[i], address(this), message);
+            gateway.callContract(
+                chains[i],
+                Strings.toHexString(address(this)),
+                message
+            );
         }
     }
 
@@ -55,18 +64,22 @@ contract OmniNFT is ERC721Upgradeable, AxelarExecutable, Ownable {
         if (chainid() == baseChainId) {
             _broadcastMessage(message);
         } else {
-            if (address(this).value > 0) {
+            if (address(this).balance > 0) {
                 gasService.payNativeGasForContractCall{
-                    value: address(this).value
+                    value: address(this).balance
                 }(
                     address(this),
                     baseChainName,
-                    address(this),
+                    Strings.toHexString(address(this)),
                     message,
                     msg.sender
                 );
             }
-            gateway.callContract(baseChainName, address(this), message);
+            gateway.callContract(
+                baseChainName,
+                Strings.toHexString(address(this)),
+                message
+            );
         }
     }
 
@@ -76,27 +89,43 @@ contract OmniNFT is ERC721Upgradeable, AxelarExecutable, Ownable {
         string calldata _sourceAddress_,
         bytes calldata payload_
     ) internal override {
-        bytes4 message = payload_[0:4];
-        if (message == transferFrom.selector) {
+        if (bytes4(payload_[0:4]) == this.transferFrom.selector) {
             (address from, address to, uint256 tokenId) = abi.decode(
+                payload_[4:],
                 (address, address, uint256)
             );
             _transferFrom(from, to, tokenId);
-        } else if (message == mint.selector) {
-            (address dest, string uri) = abi.decode((address, string));
+        } else if (bytes4(payload_[0:4]) == this.mint.selector) {
+            (address dest, string memory uri) = abi.decode(
+                payload_[4:],
+                (address, string)
+            );
             uris[nextTokenId] = uri;
-            _mint(nextTokenId, dest);
+            _mint(dest, nextTokenId);
             nextTokenId++;
         }
         // sourceChain = sourceChain_;
         // sourceAddress = sourceAddress_;
     }
 
-    function mint(address dest, string memory uri) {
-        _sendMessage(abi.encodeWithSelector(mint.selector, dest, uri));
+    function tokenURI(
+        uint256 id
+    ) public view virtual override returns (string memory) {
+        if (bytes(uris[id]).length == 0) {
+            revert("NO TOKEN");
+        }
+        return uris[id];
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public {
+    function mint(address dest, string memory uri) public {
+        _sendMessage(abi.encodeWithSelector(this.mint.selector, dest, uri));
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 tokenId
+    ) public override {
         _transferFrom(from, to, tokenId);
     }
 
@@ -128,15 +157,29 @@ contract OmniNFT is ERC721Upgradeable, AxelarExecutable, Ownable {
     function safeTransferFrom(
         address from,
         address to,
-        uint256 tokenId
-    ) public {
+        uint256 tokenId,
+        bytes memory data
+    ) public virtual override {
         _transferFrom(from, to, tokenId);
-        _checkOnERC721Received(from, to, tokenId, data);
+        // _checkOnERC721Received(from, to, tokenId, data);
     }
 
     event HasValue(address indexed sender, uint256 value);
 
-    receive() external {
+    receive() external payable {
         emit HasValue(msg.sender, msg.value);
+    }
+
+    function withdraw() public onlyOwner {
+        (bool success, ) = address(msg.sender).call{
+            value: address(this).balance
+        }("");
+        require(success, "Failed to send value");
+    }
+
+    function chainid() internal view returns (uint256 id) {
+        assembly {
+            id := chainid()
+        }
     }
 }
