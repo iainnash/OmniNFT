@@ -1,66 +1,19 @@
-## Foundry
+Why worry about bridging your NFT when this NFT can live across many chains all at once.
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+When minting this Omnichain NFT, all supported chains receive the same NFT.
+However, when you transfer this NFT on any of these chains from the owner address, all the other NFTs automatically follow, powered by Axelar multichain message passing.
 
-Foundry consists of:
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+[child chains]
+-> message back to parent chains [mint] or [transfer]
 
-## Documentation
+[parent chain]
+-> receives messages and updates state
+if an action occurs on parent, the action is broadcast out to all child chains
 
-https://book.getfoundry.sh/
 
-## Usage
+Example messaging between base (main chain) and all child chains:
+https://goerli.basescan.org/tx/0xe7dd4fe30ea8fcd62212105f937229b6816e8d3a86f69f88c3d69bf68321fbb6
+https://testnet.axelarscan.io/gmp/0x59fed0968dafaca08c854a169b56104cc1fac5d83e2491ed960cc77c8657674e
 
-### Build
 
-```shell
-$ forge build
-```
-
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
