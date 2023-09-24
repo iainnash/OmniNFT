@@ -3,4 +3,24 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+[rpc_endpoints]
+polygon-mumbai = "https://rpc-mumbai.maticvigil.com"
+polygon = "https://polygon-rpc.com"
+linea-goerli = "https://rpc.goerli.linea.build"
+base-goerli = "https://goerli.base.org"
+linea = "https://linea-mainnet.infura.io/v3/$INFURA_API_KEY"
+base = "https://rpc.base.org"
+gnosis-chiado = "https://rpc.chiadochain.net"
+scroll-sepolia = "https://scroll-public.scroll-testnet.quiknode.pro"
+mantle-testnet = "https://rpc.testnet.mantle.xyz"
+
+[etherscan]
+mainnet = { key = "${MAINNET_ETHERSCAN_API_KEY}" }
+base = { key = "${BASE_ETHERSCAN_API_KEY}" }
+base-goerli = { key = "${BASE_ETHERSCAN_API_KEY}" }
+linea-testnet = { key = "${LINEA_ETHERSCAN_API_KEY}" }
+linea = { key = "${LINEA_ETHERSCAN_API_KEY}" }
+polygon = { key = "${POLYGON_ETHERSCAN_API_KEY}" }
+polygon-mumbai = { key = "${POLYGON_ETHERSCAN_API_KEY}" }
+gnosis-chiado = { key = "${GNOSIS_ETHERSCAN_API_KEY}" }
+scroll-sepolia = { key = "ABCDEFG", url = "https://sepolia.scrollscan.dev" }

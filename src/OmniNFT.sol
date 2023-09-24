@@ -29,27 +29,56 @@ contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
         chains = chains_;
         baseChainId = baseChainId_;
         baseChainName = baseChainName_;
+        uint256 currentChainId = chainid();
+        // base
+        if (currentChainId == 84531) {
+            _setupAxelar(
+                0xe432150cce91c13a887f7D836923d5597adD8E31,
+                0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6
+            );
+        }
+        // polygon mumbai
+        if (currentChainId == 80001) {
+            _setupAxelar(
+                0xBF62ef1486468a6bd26Dd669C06db43dEd5B849B,
+                0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6
+            );
+        }
+        // linea
+        if (currentChainId == 59140) {
+            _setupAxelar(
+                0xe432150cce91c13a887f7D836923d5597adD8E31,
+                0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6
+            );
+        }
+        // filecoin calibration
+        if (currentChainId == 314159) {
+            _setupAxelar(
+                0x999117D44220F33e0441fbAb2A5aDB8FF485c54D,
+                0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6
+            );
+        }
+        // mantle
+        if (currentChainId == 5001) {
+            _setupAxelar(0xe432150cce91c13a887f7D836923d5597adD8E31, 0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6);
+        }
     }
 
-    function setupAxelar(
-        address gateway_,
-        address gasService_
-    ) public onlyOwner {
+    function _setupAxelar(address gateway_, address gasService_) internal {
         _setGateway(gateway_);
         gasService = IAxelarGasService(gasService_);
     }
 
     function _broadcastMessage(bytes memory message) internal {
+        uint256 actionBalance = address(this).balance / chains.length;
         for (uint256 i = 0; i < chains.length; i++) {
-            if (address(this).balance > 0) {
-                gasService.payNativeGasForContractCall{
-                    value: address(this).balance
-                }(
+            if (actionBalance > 0) {
+                gasService.payNativeGasForContractCall{value: actionBalance}(
                     address(this),
                     chains[i],
                     Strings.toHexString(address(this)),
                     message,
-                    msg.sender
+                    address(this)
                 );
             }
             gateway.callContract(
@@ -72,7 +101,7 @@ contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
                     baseChainName,
                     Strings.toHexString(address(this)),
                     message,
-                    msg.sender
+                    address(this)
                 );
             }
             gateway.callContract(
@@ -83,18 +112,13 @@ contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
         }
     }
 
-    // Handles calls created by setAndSend. Updates this contract's value
-    function _execute(
-        string calldata _sourceChain_,
-        string calldata _sourceAddress_,
-        bytes calldata payload_
-    ) internal override {
+    function _executeMessage(bytes calldata payload_) internal {
         if (bytes4(payload_[0:4]) == this.transferFrom.selector) {
             (address from, address to, uint256 tokenId) = abi.decode(
                 payload_[4:],
                 (address, address, uint256)
             );
-            _transferFrom(from, to, tokenId);
+            _transfer(from, to, tokenId);
         } else if (bytes4(payload_[0:4]) == this.mint.selector) {
             (address dest, string memory uri) = abi.decode(
                 payload_[4:],
@@ -104,6 +128,15 @@ contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
             _mint(dest, nextTokenId);
             nextTokenId++;
         }
+    }
+
+    // Handles calls created by setAndSend. Updates this contract's value
+    function _execute(
+        string calldata _sourceChain_,
+        string calldata _sourceAddress_,
+        bytes calldata payload_
+    ) internal override {
+        _executeMessage(payload_);
         // sourceChain = sourceChain_;
         // sourceAddress = sourceAddress_;
     }
@@ -119,6 +152,11 @@ contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
 
     function mint(address dest, string memory uri) public {
         _sendMessage(abi.encodeWithSelector(this.mint.selector, dest, uri));
+        if (chainid() == baseChainId) {
+            uris[nextTokenId] = uri;
+            _mint(dest, nextTokenId);
+            nextTokenId++;
+        }
     }
 
     function transferFrom(
@@ -130,17 +168,21 @@ contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
     }
 
     function _transferFrom(address from, address to, uint256 tokenId) internal {
-        if (chainid() == baseChainId) {
-            super.transferFrom(from, to, tokenId);
-        }
+        require(
+            _isApprovedOrOwner(msg.sender, tokenId),
+            "not approved or owner"
+        );
         _sendMessage(
-            abi.encodeWithSignature(
-                "transferFrom(address,address,uint256)",
+            abi.encodeWithSelector(
+                this.transferFrom.selector,
                 from,
                 to,
                 tokenId
             )
         );
+        if (chainid() == baseChainId) {
+            _transfer(from, to, tokenId);
+        }
     }
 
     function setApprovalForAll(
@@ -161,6 +203,7 @@ contract OmniNFT is ERC721, AxelarExecutableStatic, Ownable {
         bytes memory data
     ) public virtual override {
         _transferFrom(from, to, tokenId);
+        // todo
         // _checkOnERC721Received(from, to, tokenId, data);
     }
 
