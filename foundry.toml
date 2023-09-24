@@ -13,6 +13,7 @@ base = "https://rpc.base.org"
 gnosis-chiado = "https://rpc.chiadochain.net"
 scroll-sepolia = "https://scroll-public.scroll-testnet.quiknode.pro"
 mantle-testnet = "https://rpc.testnet.mantle.xyz"
+arbitrium-goerli = "https://endpoints.omniatech.io/v1/arbitrum/goerli/public"
 
 [etherscan]
 mainnet = { key = "${MAINNET_ETHERSCAN_API_KEY}" }
@@ -24,3 +25,4 @@ polygon = { key = "${POLYGON_ETHERSCAN_API_KEY}" }
 polygon-mumbai = { key = "${POLYGON_ETHERSCAN_API_KEY}" }
 gnosis-chiado = { key = "${GNOSIS_ETHERSCAN_API_KEY}" }
 scroll-sepolia = { key = "ABCDEFG", url = "https://sepolia.scrollscan.dev" }
+arbitrium-goerli = { key = "${ARB_ETHERSCAN_API_KEY}" }
